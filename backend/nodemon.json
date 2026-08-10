@@ -1,0 +1,16 @@
+{
+  "ignore": [
+    "uploads/*",
+    "node_modules/*",
+    "*.json",
+    "*.csv"
+  ],
+  "watch": [
+    "server.js",
+    "controllers/**/*.js",
+    "models/**/*.js",
+    "routes/**/*.js",
+    "middleware/**/*.js",
+    "utils/**/*.js"
+  ]
+}
