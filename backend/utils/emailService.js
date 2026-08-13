@@ -22,8 +22,21 @@ if (isEmailConfigured) {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
+    // Prevent hanging connections on Render
+    connectionTimeout: 10000, // 10 seconds
+    greetingTimeout: 10000,   // 10 seconds
+    socketTimeout: 15000,     // 15 seconds
   });
   console.log('Nodemailer transporter initialized.');
+
+  // Verify SMTP connection at server startup
+  transporter.verify((error, success) => {
+    if (error) {
+      console.error(`[SMTP Startup Error] SMTP verification failed for ${process.env.SMTP_HOST}:${process.env.SMTP_PORT}:`, error.message);
+    } else {
+      console.log(`[SMTP Startup Success] SMTP connection verified successfully for ${process.env.SMTP_HOST}:${process.env.SMTP_PORT}. Ready to send emails.`);
+    }
+  });
 } else {
   console.log('Nodemailer SMTP details missing. Emails will be logged to the console.');
 }
@@ -38,10 +51,17 @@ const sendMail = async (options) => {
 
   if (isEmailConfigured) {
     try {
-      await transporter.sendMail(mailOptions);
-      console.log(`Email successfully sent to ${options.to} - Subject: ${options.subject}`);
-    } catch (error) {
-      console.error(`Email delivery failure to ${options.to}:`, error.message);
+      // Fire-and-forget: execute asynchronously in the background.
+      // Do NOT await, so that the HTTP API request and DB operations do not get stuck.
+      transporter.sendMail(mailOptions)
+        .then((info) => {
+          console.log(`[SMTP Success] Email sent to: ${options.to} | Subject: "${options.subject}" | Message ID: ${info.messageId}`);
+        })
+        .catch((error) => {
+          console.error(`[SMTP Failure] Failed to send email to: ${options.to} | Subject: "${options.subject}" | Error: ${error.message} | Code: ${error.code} | Command: ${error.command}`);
+        });
+    } catch (syncError) {
+      console.error(`[SMTP Sync Error] Failed to initiate email sending to: ${options.to} | Subject: "${options.subject}" | Error: ${syncError.message}`);
     }
   } else {
     console.log('\n=================== MOCK EMAIL SENT ===================');
